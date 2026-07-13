@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Attendance Tracker</title>
+<meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Attendance">
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card-bg: #ffffff;
+    --text: #1a1d23;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --green: #16a34a;
+    --green-bg: #dcfce7;
+    --yellow: #b45309;
+    --yellow-bg: #fef3c7;
+    --red: #dc2626;
+    --red-bg: #fee2e2;
+    --input-bg: #f9fafb;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+    --nav-h: 62px;
+  }
+  [data-theme="dark"] {
+    --bg: #0f1115;
+    --card-bg: #1a1d24;
+    --text: #e5e7eb;
+    --text-muted: #9ca3af;
+    --border: #2a2e37;
+    --accent: #818cf8;
+    --accent-hover: #6366f1;
+    --green: #4ade80;
+    --green-bg: #14532d33;
+    --yellow: #fbbf24;
+    --yellow-bg: #78350f33;
+    --red: #f87171;
+    --red-bg: #7f1d1d33;
+    --input-bg: #23262f;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overscroll-behavior-y: none;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    transition: background 0.2s, color 0.2s;
+    padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 10px);
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 16px 8px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .topbar h1 {
+    font-size: 1.25rem;
+    margin: 0;
+  }
+  .theme-toggle {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    box-shadow: var(--shadow);
+    color: var(--text);
+  }
+
+  .container {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 10px 16px 20px;
+  }
+
+  /* ---- Page/view system ---- */
+  .page {
+    display: none;
+    animation: slideIn 0.22s ease;
+  }
+  .page.active { display: block; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .back-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    box-shadow: var(--shadow);
+    color: var(--text);
+    flex-shrink: 0;
+  }
+  .page-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+  }
+  .card h2 {
+    margin: 0 0 14px 0;
+    font-size: 1.05rem;
+  }
+  .card-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .card-title-row h2 { margin: 0; }
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 4px 0;
+  }
+
+  .percent-display {
+    text-align: center;
+    padding: 10px 0 6px;
+  }
+  .percent-display .num {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .percent-display .sub {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-top: 6px;
+  }
+  .status-pill {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 10px;
+  }
+  .status-green { background: var(--green-bg); color: var(--green); }
+  .status-yellow { background: var(--yellow-bg); color: var(--yellow); }
+  .status-red { background: var(--red-bg); color: var(--red); }
+
+  .form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  label {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  input[type="number"], input[type="date"], input[type="text"] {
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 1rem;
+    color: var(--text);
+    width: 100%;
+  }
+  input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 0px;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    width: 100%;
+    transition: background 0.15s;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 0.88rem;
+    font-weight: 500;
+  }
+  .btn-secondary:hover { background: var(--input-bg); }
+  .btn-danger { color: var(--red); border-color: var(--red); }
+
+  .skips-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .skip-box {
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    border: 1px solid var(--border);
+  }
+  .skip-box .target-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .skip-box .value { font-size: 1.6rem; font-weight: 700; }
+  .skip-box .desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+
+  .custom-target-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    margin-top: 14px;
+  }
+  .custom-target-row .field { flex: 1; }
+  .custom-target-row button { width: auto; padding: 10px 16px; }
+
+  #customSkipResult {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--input-bg);
+    font-size: 0.9rem;
+    display: none;
+  }
+
+  .date-preview {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .date-preview .weekday {
+    display: inline-block;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 7px;
+    margin-left: 6px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-info { flex: 1; }
+  .history-date { font-weight: 600; font-size: 0.92rem; }
+  .history-detail { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+  .history-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    background: none;
+    border: none;
+    font-size: 1.05rem;
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: var(--text-muted);
+  }
+  .icon-btn:hover { background: var(--input-bg); }
+
+  .empty-msg { text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 0.9rem; }
+
+  .data-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .data-actions button { flex: 1; min-width: 100px; }
+
+  .toast {
+    position: fixed;
+    bottom: calc(var(--nav-h) + 16px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: var(--bg);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+    z-index: 100;
+    max-width: 90%;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 16px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 20px;
+    max-width: 380px;
+    width: 100%;
+    box-shadow: var(--shadow);
+  }
+  .modal h3 { margin-top: 0; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-actions button { flex: 1; }
+
+  input[type="file"] { display: none; }
+
+  /* ---- Bottom nav bar ---- */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: var(--nav-h);
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--card-bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 50;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  }
+  .nav-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 6px 0;
+  }
+  .nav-btn .nav-icon { font-size: 1.25rem; }
+  .nav-btn.active { color: var(--accent); }
+
+  @media (max-width: 400px) {
+    .percent-display .num { font-size: 2.4rem; }
+    .skip-box .value { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1 id="topTitle">📊 Attendance Tracker</h1>
+  <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">🌙</button>
+</div>
+
+<div class="container">
+
+  <!-- ================= HOME PAGE ================= -->
+  <section class="page active" id="page-home">
+    <div class="card">
+      <h2>Overall Attendance</h2>
+      <div class="percent-display">
+        <div class="num" id="overallPercent">0%</div>
+        <div class="sub" id="overallFraction">0 / 0 classes attended</div>
+        <div id="statusPill" class="status-pill status-red">No data yet</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Add Today's Entry</h2>
+      <form id="entryForm">
+        <div class="form-row">
+          <div class="field">
+            <label for="dateInput">Date</label>
+            <input type="date" id="dateInput" required>
+            <div class="date-preview" id="datePreview"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="heldInput">Classes held today</label>
+            <input type="number" id="heldInput" min="0" step="1" placeholder="e.g. 4" required>
+          </div>
+          <div class="field">
+            <label for="attendedInput">Classes attended today</label>
+            <input type="number" id="attendedInput" min="0" step="1" placeholder="e.g. 3" required>
+          </div>
+        </div>
+        <button type="submit" class="btn-primary" id="submitBtn">Add Entry</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Safe Skips Calculator</h2>
+      <div class="skips-grid" id="skipsGrid"></div>
+      <div class="custom-target-row">
+        <div class="field">
+          <label for="customTarget">Custom target %</label>
+          <input type="number" id="customTarget" min="1" max="100" step="0.1" placeholder="e.g. 75">
+        </div>
+        <button class="btn-secondary" id="customTargetBtn">Calculate</button>
+      </div>
+      <div id="customSkipResult"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row">
+        <h2>Recent Entries</h2>
+        <button class="link-btn" id="viewAllHistoryBtn">View all →</button>
+      </div>
+      <div id="recentList">
+        <div class="empty-msg">No entries yet. Add your first entry above.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HISTORY PAGE ================= -->
+  <section class="page" id="page-history">
+    <div class="page-header">
+      <button class="back-btn" id="historyBackBtn">←</button>
+      <h2>Full History</h2>
+    </div>
+    <div class="card">
+      <div id="historyList">
+        <div class="empty-msg">No entries yet.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SETTINGS PAGE ================= -->
+  <section class="page" id="page-settings">
+    <div class="page-header">
+      <button class="back-btn" id="settingsBackBtn">←</button>
+      <h2>Settings & Data</h2>
+    </div>
+    <div class="card">
+      <h2>Backup & Restore</h2>
+      <div class="data-actions">
+        <button class="btn-secondary" id="exportBtn">⬇️ Export JSON</button>
+        <button class="btn-secondary" id="importBtn">⬆️ Import JSON</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json">
+    </div>
+    <div class="card">
+      <h2>Danger Zone</h2>
+      <button class="btn-secondary btn-danger" id="resetBtn" style="width:100%;">🗑️ Reset All Data</button>
+    </div>
+    <div class="card">
+      <h2>About</h2>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">
+        Attendance Tracker — 100% offline, all data stored locally on this device only. No account, no server, no internet required.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<!-- ================= Bottom Nav ================= -->
+<div class="bottom-nav">
+  <button class="nav-btn active" data-page="home"><span class="nav-icon">🏠</span>Home</button>
+  <button class="nav-btn" data-page="history"><span class="nav-icon">📜</span>History</button>
+  <button class="nav-btn" data-page="settings"><span class="nav-icon">⚙️</span>Settings</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Edit modal -->
+<div class="modal-overlay" id="editModalOverlay">
+  <div class="modal">
+    <h3>Edit Entry</h3>
+    <div class="field" style="margin-bottom:10px;">
+      <label for="editDate">Date</label>
+      <input type="date" id="editDate">
+      <div class="date-preview" id="editDatePreview"></div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label for="editHeld">Classes held</label>
+        <input type="number" id="editHeld" min="0" step="1">
+      </div>
+      <div class="field">
+        <label for="editAttended">Classes attended</label>
+        <input type="number" id="editAttended" min="0" step="1">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="editCancelBtn">Cancel</button>
+      <button class="btn-primary" id="editSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm modal -->
+<div class="modal-overlay" id="confirmModalOverlay">
+  <div class="modal">
+    <h3 id="confirmTitle">Are you sure?</h3>
+    <p id="confirmMsg" style="color: var(--text-muted); font-size: 0.9rem;"></p>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="confirmCancelBtn">Cancel</button>
+      <button class="btn-primary btn-danger" id="confirmOkBtn" style="background: var(--red); color: white; border: none;">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'attendanceTracker.entries';
+  const THEME_KEY = 'attendanceTracker.theme';
+
+  let entries = [];
+  let editingId = null;
+  let confirmCallback = null;
+
+  // ---------- Storage ----------
+  function loadEntries() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      entries = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(entries)) entries = [];
+    } catch (e) { entries = []; }
+  }
+  function saveEntries() { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+
+  // ---------- Theme ----------
+  function loadTheme() {
+    const saved = localStorage.getItem(THEME_KEY);
+    const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(theme);
+  }
+  function applyTheme(theme) {
+    if (theme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.getElementById('themeToggle').textContent = '☀️';
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      document.getElementById('themeToggle').textContent = '🌙';
+    }
+    localStorage.setItem(THEME_KEY, theme);
+  }
+  document.getElementById('themeToggle').addEventListener('click', function () {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    applyTheme(isDark ? 'light' : 'dark');
+  });
+
+  // ---------- Page navigation ----------
+  const pageTitles = { home: '📊 Attendance Tracker', history: '📜 History', settings: '⚙️ Settings' };
+  function goToPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-page') === name));
+    document.getElementById('topTitle').textContent = pageTitles[name];
+    window.scrollTo(0, 0);
+    if (name === 'history') renderHistory();
+  }
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => goToPage(btn.getAttribute('data-page')));
+  });
+  document.getElementById('viewAllHistoryBtn').addEventListener('click', () => goToPage('history'));
+  document.getElementById('historyBackBtn').addEventListener('click', () => goToPage('home'));
+  document.getElementById('settingsBackBtn').addEventListener('click', () => goToPage('home'));
+
+  // ---------- Toast ----------
+  let toastTimeout;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ---------- Totals ----------
+  function getTotals() {
+    let held = 0, attended = 0;
+    entries.forEach(e => { held += e.held; attended += e.attended; });
+    return { held, attended };
+  }
+  function getPercent(held, attended) { return held <= 0 ? 0 : (attended / held) * 100; }
+
+  // ---------- Safe skips math ----------
+  function calcSafeSkips(held, attended, targetPct) {
+    if (targetPct <= 0) return { type: 'skip', value: Infinity };
+    const maxX = (attended * 100 / targetPct) - held;
+    const x = Math.floor(maxX + 1e-9);
+    if (x >= 0) return { type: 'skip', value: x };
+    const t = targetPct / 100;
+    const numerator = (t * held) - attended;
+    const denominator = 1 - t;
+    if (denominator <= 0) return { type: 'need', value: Infinity };
+    const y = Math.ceil((numerator / denominator) - 1e-9);
+    return { type: 'need', value: Math.max(y, 0) };
+  }
+  function statusClass(percent, targetPct) {
+    if (percent >= targetPct) return (percent - targetPct) < 1.5 ? 'status-yellow' : 'status-green';
+    return 'status-red';
+  }
+
+  // ---------- Rendering ----------
+  function renderOverview() {
+    const { held, attended } = getTotals();
+    const percent = getPercent(held, attended);
+    document.getElementById('overallPercent').textContent = held > 0 ? percent.toFixed(1) + '%' : '0%';
+    document.getElementById('overallFraction').textContent = `${attended} / ${held} classes attended`;
+    const pill = document.getElementById('statusPill');
+    pill.className = 'status-pill';
+    if (held === 0) { pill.classList.add('status-yellow'); pill.textContent = 'No data yet'; return; }
+    const cls = statusClass(percent, 75);
+    pill.classList.add(cls);
+    if (cls === 'status-green') pill.textContent = 'Looking good ✅';
+    else if (cls === 'status-yellow') pill.textContent = 'Borderline ⚠️';
+    else pill.textContent = 'Below safe zone ❌';
+  }
+
+  function renderSkips() {
+    const { held, attended } = getTotals();
+    const percent = getPercent(held, attended);
+    const grid = document.getElementById('skipsGrid');
+    grid.innerHTML = '';
+    [80, 90].forEach(target => {
+      const result = calcSafeSkips(held, attended, target);
+      const cls = statusClass(percent, target);
+      const box = document.createElement('div');
+      box.className = 'skip-box';
+      let valueHtml, descHtml;
+      if (held === 0) { valueHtml = '—'; descHtml = 'Add an entry first'; }
+      else if (result.type === 'skip') {
+        const v = result.value === Infinity ? '∞' : result.value;
+        valueHtml = v;
+        descHtml = result.value === 0 ? 'No more skips left' : 'classes can be skipped';
+      } else {
+        const v = result.value === Infinity ? '∞' : result.value;
+        valueHtml = v;
+        descHtml = 'consecutive classes needed';
+      }
+      const colorVar = cls === 'status-green' ? 'green' : cls === 'status-yellow' ? 'yellow' : 'red';
+      box.innerHTML = `
+        <div class="target-label">Target ${target}%</div>
+        <div class="value" style="color: var(--${colorVar})">${valueHtml}</div>
+        <div class="desc">${descHtml}</div>`;
+      grid.appendChild(box);
+    });
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    if (isNaN(d)) return iso;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  function formatDateWithWeekday(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    if (isNaN(d)) return '';
+    const weekday = d.toLocaleDateString(undefined, { weekday: 'short' });
+    return `${formatDate(iso)} <span class="weekday">${weekday}</span>`;
+  }
+
+  function buildHistoryRow(e) {
+    const pct = e.held > 0 ? ((e.attended / e.held) * 100).toFixed(0) : '0';
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `
+      <div class="history-info">
+        <div class="history-date">${formatDate(e.date)}</div>
+        <div class="history-detail">${e.attended} / ${e.held} attended (${pct}%)</div>
+      </div>
+      <div class="history-actions">
+        <button class="icon-btn" data-edit="${e.id}" title="Edit">✏️</button>
+        <button class="icon-btn" data-delete="${e.id}" title="Delete">🗑️</button>
+      </div>`;
+    return item;
+  }
+
+  function renderRecent() {
+    const list = document.getElementById('recentList');
+    if (entries.length === 0) {
+      list.innerHTML = '<div class="empty-msg">No entries yet. Add your first entry above.</div>';
+      return;
+    }
+    const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 3);
+    list.innerHTML = '';
+    sorted.forEach(e => list.appendChild(buildHistoryRow(e)));
+    attachRowHandlers(list);
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    if (entries.length === 0) {
+      list.innerHTML = '<div class="empty-msg">No entries yet.</div>';
+      return;
+    }
+    const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+    list.innerHTML = '';
+    sorted.forEach(e => list.appendChild(buildHistoryRow(e)));
+    attachRowHandlers(list);
+  }
+
+  function attachRowHandlers(container) {
+    container.querySelectorAll('[data-edit]').forEach(btn => {
+      btn.addEventListener('click', () => openEditModal(Number(btn.getAttribute('data-edit'))));
+    });
+    container.querySelectorAll('[data-delete]').forEach(btn => {
+      btn.addEventListener('click', () => confirmDelete(Number(btn.getAttribute('data-delete'))));
+    });
+  }
+
+  function renderAll() {
+    renderOverview();
+    renderSkips();
+    renderRecent();
+    if (document.getElementById('page-history').classList.contains('active')) renderHistory();
+  }
+
+  // ---------- Entry form ----------
+  const entryForm = document.getElementById('entryForm');
+  const dateInput = document.getElementById('dateInput');
+  const datePreview = document.getElementById('datePreview');
+  dateInput.value = new Date().toISOString().slice(0, 10);
+
+  function updateDatePreview() {
+    datePreview.innerHTML = dateInput.value ? formatDateWithWeekday(dateInput.value) : '';
+  }
+  dateInput.addEventListener('input', updateDatePreview);
+  dateInput.addEventListener('change', updateDatePreview);
+  updateDatePreview();
+
+  entryForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const date = dateInput.value;
+    const held = parseInt(document.getElementById('heldInput').value, 10);
+    const attended = parseInt(document.getElementById('attendedInput').value, 10);
+    if (isNaN(held) || isNaN(attended) || held < 0 || attended < 0) { showToast('Please enter valid numbers.'); return; }
+    if (attended > held) { showToast("Attended can't exceed classes held."); return; }
+    entries.push({ id: Date.now(), date, held, attended });
+    saveEntries();
+    renderAll();
+    entryForm.reset();
+    dateInput.value = new Date().toISOString().slice(0, 10);
+    updateDatePreview();
+    showToast('Entry added ✓');
+  });
+
+  // ---------- Edit modal ----------
+  const editModalOverlay = document.getElementById('editModalOverlay');
+  function openEditModal(id) {
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
+    editingId = id;
+    document.getElementById('editDate').value = entry.date;
+    document.getElementById('editHeld').value = entry.held;
+    document.getElementById('editAttended').value = entry.attended;
+    updateEditDatePreview();
+    editModalOverlay.classList.add('show');
+  }
+  const editDateInput = document.getElementById('editDate');
+  const editDatePreview = document.getElementById('editDatePreview');
+  function updateEditDatePreview() {
+    editDatePreview.innerHTML = editDateInput.value ? formatDateWithWeekday(editDateInput.value) : '';
+  }
+  editDateInput.addEventListener('input', updateEditDatePreview);
+  editDateInput.addEventListener('change', updateEditDatePreview);
+  document.getElementById('editCancelBtn').addEventListener('click', () => {
+    editModalOverlay.classList.remove('show'); editingId = null;
+  });
+  document.getElementById('editSaveBtn').addEventListener('click', () => {
+    const entry = entries.find(e => e.id === editingId);
+    if (!entry) return;
+    const date = document.getElementById('editDate').value;
+    const held = parseInt(document.getElementById('editHeld').value, 10);
+    const attended = parseInt(document.getElementById('editAttended').value, 10);
+    if (isNaN(held) || isNaN(attended) || held < 0 || attended < 0) { showToast('Please enter valid numbers.'); return; }
+    if (attended > held) { showToast("Attended can't exceed classes held."); return; }
+    entry.date = date; entry.held = held; entry.attended = attended;
+    saveEntries();
+    renderAll();
+    editModalOverlay.classList.remove('show');
+    editingId = null;
+    showToast('Entry updated ✓');
+  });
+
+  // ---------- Confirm modal ----------
+  const confirmModalOverlay = document.getElementById('confirmModalOverlay');
+  function openConfirm(title, msg, onConfirm) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMsg').textContent = msg;
+    confirmCallback = onConfirm;
+    confirmModalOverlay.classList.add('show');
+  }
+  document.getElementById('confirmCancelBtn').addEventListener('click', () => {
+    confirmModalOverlay.classList.remove('show'); confirmCallback = null;
+  });
+  document.getElementById('confirmOkBtn').addEventListener('click', () => {
+    if (confirmCallback) confirmCallback();
+    confirmModalOverlay.classList.remove('show');
+    confirmCallback = null;
+  });
+  function confirmDelete(id) {
+    openConfirm('Delete entry?', 'This will permanently remove this entry from your history.', () => {
+      entries = entries.filter(e => e.id !== id);
+      saveEntries();
+      renderAll();
+      showToast('Entry deleted');
+    });
+  }
+
+  // ---------- Custom target ----------
+  document.getElementById('customTargetBtn').addEventListener('click', () => {
+    const target = parseFloat(document.getElementById('customTarget').value);
+    const resultBox = document.getElementById('customSkipResult');
+    if (isNaN(target) || target <= 0 || target > 100) { showToast('Enter a valid target percentage (1-100).'); return; }
+    const { held, attended } = getTotals();
+    if (held === 0) { resultBox.style.display = 'block'; resultBox.textContent = 'Add at least one entry first.'; return; }
+    const result = calcSafeSkips(held, attended, target);
+    resultBox.style.display = 'block';
+    if (result.type === 'skip') {
+      const v = result.value === Infinity ? '∞' : result.value;
+      resultBox.textContent = result.value === 0
+        ? `You're at exactly ${target}% — no more safe skips remain.`
+        : `You can skip ${v} more class(es) and stay at or above ${target}%.`;
+    } else {
+      const v = result.value === Infinity ? '∞' : result.value;
+      resultBox.textContent = `You're below ${target}%. Attend the next ${v} class(es) in a row to reach it.`;
+    }
+  });
+
+  // ---------- Export / Import / Reset ----------
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const data = JSON.stringify({ entries, exportedAt: new Date().toISOString() }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendance-backup-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Exported ✓');
+  });
+
+  const importFile = document.getElementById('importFile');
+  document.getElementById('importBtn').addEventListener('click', () => importFile.click());
+  importFile.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (evt) {
+      try {
+        const parsed = JSON.parse(evt.target.result);
+        const imported = Array.isArray(parsed) ? parsed : parsed.entries;
+        if (!Array.isArray(imported)) throw new Error('Invalid format');
+        const valid = imported.filter(e => e && typeof e.held === 'number' && typeof e.attended === 'number' && typeof e.date === 'string')
+          .map(e => ({ id: e.id || Date.now() + Math.random(), date: e.date, held: e.held, attended: e.attended }));
+        if (valid.length === 0) throw new Error('No valid entries found');
+        openConfirm('Import data?', `Found ${valid.length} entries. This will REPLACE all current data. Continue?`, () => {
+          entries = valid;
+          saveEntries();
+          renderAll();
+          showToast('Data imported ✓');
+        });
+      } catch (err) { showToast('Import failed: invalid JSON file.'); }
+      importFile.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    openConfirm('Reset all data?', 'This will permanently delete all entries. This cannot be undone.', () => {
+      entries = [];
+      saveEntries();
+      renderAll();
+      showToast('All data cleared');
+    });
+  });
+
+  // ---------- Service worker (for offline PWA install) ----------
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+
+  // ---------- Init ----------
+  loadTheme();
+  loadEntries();
+  renderAll();
+})();
+</script>
+</body>
+</html>
